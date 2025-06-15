@@ -1,0 +1,117 @@
+local DoorModule = require(script.Parent.Door)
+local FurnitureModule = require(script.Parent.Furniture)
+local ItemsModule = require(script.Parent.Items)
+local RoomsFolder = game:GetService("ServerStorage").Rooms
+
+local RNG = Random.new(os.time())
+
+function shuffle(tableToShuffle: table): table
+	local ShuffledTable = {}
+
+	for Index = 1, #tableToShuffle do
+		local RandomIndex = RNG:NextInteger(0,#tableToShuffle)
+		table.insert(ShuffledTable , tableToShuffle[RandomIndex])
+		table.remove(tableToShuffle, RandomIndex)
+	end
+
+	return ShuffledTable 
+end
+
+local room = {}
+room.totalfront_row = 0
+room.totalright = 0
+room.totalleft = 0
+room.lastDirection = nil
+room.lastStair = nil
+room.lastLock = nil
+
+local function DirectionChecker(Direction)
+	return (Direction and Direction == room.lastDirection and Direction ~= "Front") or (Direction and Direction == "Front" and room.totalfront_row > 7) or (Direction and Direction == "Left" and room.totalright < room.totalleft) or (Direction and Direction == "Right" and room.totalright > room.totalleft)
+end
+
+function room.GetRandom(prevRoom)
+	local Rooms = shuffle(RoomsFolder:GetChildren())
+	local totalweight = 0
+	for _,Room in pairs(Rooms) do
+		totalweight += require(Room.Info).Weight
+	end
+	
+	local RandomWeight = RNG:NextNumber(0, totalweight)
+	local CurrentWeight = 0
+	local RandomRoom = nil
+	for _,Room in pairs(Rooms) do
+		CurrentWeight += require(Room.Info).Weight
+		if RandomWeight <= CurrentWeight then
+			RandomRoom = Room
+			break
+		end
+	end
+
+	local info = require(RandomRoom.Info)
+	local Direction = info.Direction
+	local HasStairs = info.HasStairs
+
+	if (prevRoom.Name == RandomRoom.Name) or DirectionChecker(Direction) or (HasStairs and room.lastStair) then
+		return room.GetRandom(prevRoom)
+	else
+		if Direction then
+			room.lastDirection = Direction
+			if Direction == "Right" then
+				room.totalright += 1
+				room.totalfront_row = 0
+			elseif Direction == "Left" then
+				room.totalleft += 1
+				room.totalfront_row = 0
+			else
+				room.totalfront_row += 1
+			end
+		end
+		if HasStairs then
+			room.lastStair = HasStairs
+		end
+		return RandomRoom
+	end
+end
+
+function room.Generate(prevRoom, number)
+	local RandomRoom = room.GetRandom(prevRoom)
+	--print(number)
+	if number == 50 then
+		--RandomRoom = game.ServerStorage.SpecialRooms["Jeff Shop"]
+	end
+	local NewRoom = RandomRoom:Clone()
+	NewRoom:PivotTo(prevRoom.Exit.CFrame)
+	NewRoom.Parent = workspace.GeneratedRooms
+	workspace.Values.CurrentRoom.Value = NewRoom
+	if NewRoom:FindFirstChild("Light") then
+		for _,Light in pairs(NewRoom:FindFirstChild("Light"):GetDescendants()) do
+			if Light:IsA("PointLight") then
+				Light.Enabled = workspace.Values.Light.Value
+				if workspace.Values.Light.Value then
+					Light.Parent.Color = Color3.fromRGB(248, 217, 109)
+					Light.Parent.Material = Enum.Material.Neon
+				end
+			end
+		end
+	end
+	if NewRoom:FindFirstChild("Furnitures") then
+		FurnitureModule.Furnish(NewRoom)
+	end
+	local lock = false
+	ItemsModule.Create(NewRoom)
+	if NewRoom:FindFirstChild("GeneratedFurnitures") and NewRoom:FindFirstChild("GeneratedFurnitures"):FindFirstChild("ItemPosition",true) then
+		if RNG:NextNumber(0,100) >= 90 and not room.lastLock then
+			--print("Lock")
+			ItemsModule.Key(NewRoom)
+			lock = true
+		else
+			room.lastLock = false
+		end
+	end
+	ItemsModule.Items(NewRoom)
+	DoorModule.New(NewRoom, number+1, lock)
+	room.lastLock = lock
+	return NewRoom
+end
+
+return room
