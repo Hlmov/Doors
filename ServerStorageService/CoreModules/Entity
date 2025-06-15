@@ -1,0 +1,339 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local Debris = game:GetService("Debris")
+
+local RemoteEvents = ReplicatedStorage.RemoteEvents
+local JumpscareEvent = RemoteEvents.Jumpscare
+local EntityOpenEvent = RemoteEvents.EntityDoorOpen
+
+local LightFlick = script.Flick
+local LightBreak = script.Break
+
+local RNG = Random.new(os.time())
+local ItemsModule = require(script.Parent.Items)
+
+function shuffle(tableToShuffle)
+	local ShuffledTable = {}
+
+	for Index = 1, #tableToShuffle do
+		local RandomIndex = RNG:NextInteger(0,#tableToShuffle)
+		table.insert(ShuffledTable , tableToShuffle[RandomIndex])
+		table.remove(tableToShuffle, RandomIndex)
+	end
+
+	return ShuffledTable 
+end
+
+local entity = {}
+
+function entity.LerpTo(Entity, WayPoint)
+	if Entity then
+		local Data = require(Entity.Info)
+		local alpha = 0
+		local speed = Data.Speed
+		local distance =  (Entity.PrimaryPart.Position-WayPoint.Position).Magnitude
+		local relativeSpeed = distance / speed
+		local StartPoint = Entity.PrimaryPart.CFrame
+		local loop = nil
+		local reachedTarget = Instance.new("BindableEvent")
+
+		loop = RunService.Heartbeat:Connect(function(delta)
+			local goalCFrame = StartPoint:Lerp(WayPoint, alpha)
+			Entity:PivotTo(goalCFrame)
+			alpha += delta / relativeSpeed
+			if alpha >= 1 then
+				loop:Disconnect()
+				reachedTarget:Fire()
+			end
+		end)
+
+		reachedTarget.Event:Wait()
+	end
+end
+
+function entity.Aspire(StartCFrame, Rooms)
+	spawn(function()
+		if workspace.Values.Light.Value then
+			local Room = Rooms[#Rooms-1]
+			if Room:FindFirstChild("Light")  then
+				for _,Light in pairs(Room:FindFirstChild("Light"):GetChildren()) do
+					wait(0.1)
+					local Flick = LightFlick:Clone()
+					Flick.Parent = Light
+					Flick:Play()
+					spawn(function()
+						if Light:FindFirstChildOfClass("PointLight") then
+							Light:FindFirstChildOfClass("PointLight").Enabled = false
+							Light.Color = Color3.fromRGB(27, 42, 53)
+							Light.Material = Enum.Material.Glass
+							wait(0.05)
+							Light:FindFirstChildOfClass("PointLight").Enabled = true
+							Light.Color = Color3.fromRGB(248, 217, 109)
+							Light.Material = Enum.Material.Neon
+							wait(0.1)
+						end
+					end)
+				end
+			end
+		end
+	end)
+
+	task.wait()
+	local Entity = game.ServerStorage.Entity.Aspire:Clone()
+	Entity:PivotTo(StartCFrame-Vector3.new(0,RNG:NextNumber(1500,2500),0))
+	Entity.Parent = workspace.GeneratedEntity
+
+	local Blacklist = {}
+	local loop = nil
+	loop = RunService.Heartbeat:Connect(function()
+		if Entity and Entity:FindFirstChild("Sensor") then
+			local Parts = workspace:GetPartsInPart(Entity.Sensor,OverlapParams.new())
+			for _,Part in Parts do
+				if (Part and Part:IsA("BasePart") and Part.Parent and not Part.Anchored and Part.Name == "HumanoidRootPart" and not table.find(Blacklist,Part.Parent)) then
+					local Player = game.Players:GetPlayerFromCharacter(Part.Parent)
+					table.insert(Blacklist,Part.Parent)
+					Part.Parent:FindFirstChildOfClass("Humanoid"):TakeDamage(100)
+					JumpscareEvent:FireClient(Player,"Aspire")
+					wait(5)
+					JumpscareEvent:FireClient(Player,nil,true)
+				end
+
+				if Part and Part:IsA("BasePart") and Part.Name == "LightPart" and not table.find(Blacklist,Part) then
+					table.insert(Blacklist,Part)
+					local Break = LightBreak:Clone()
+					Break.Parent = Part
+					Break:Play()
+					if Part:FindFirstChildOfClass("PointLight") then
+						Part:FindFirstChildOfClass("PointLight").Enabled = false
+						Part.Color = Color3.fromRGB(27, 42, 53)
+						Part.Material = Enum.Material.Glass
+					end
+				end
+			end
+		else
+			loop:Disconnect()
+		end
+	end)
+	
+	for _,Room in pairs(Rooms) do
+		if Room and Room:FindFirstChild("WayPoints") then
+			for i = 1, #Room:FindFirstChild("WayPoints"):GetChildren() do
+				if Room and Room:FindFirstChild("WayPoints") and Room:FindFirstChild("WayPoints"):FindFirstChild(i) then
+					entity.LerpTo(Entity, Room:FindFirstChild("WayPoints"):FindFirstChild(i).CFrame)
+				end
+			end
+			if Room == Rooms[#Rooms-1] then
+				if not Room:HasTag("Lock") then
+					EntityOpenEvent:Fire(Room)
+					task.wait()
+					local LastRoom = workspace.Values.CurrentRoom.Value
+					for i = 1, #LastRoom:FindFirstChild("WayPoints"):GetChildren() do
+						if LastRoom and LastRoom:FindFirstChild("WayPoints") and LastRoom:FindFirstChild("WayPoints"):FindFirstChild(i) then
+							entity.LerpTo(Entity, LastRoom:FindFirstChild("WayPoints"):FindFirstChild(i).CFrame)
+						end
+					end
+				end
+
+				workspace.Values.Light.Value = false
+				workspace.Values.Light:SetAttribute("OpenedDoors",0)
+				for _,Part in pairs(workspace.GeneratedRooms:GetDescendants()) do
+					if Part and Part:IsA("BasePart") and Part.Name == "LightPart" and Part.Color ~= Color3.fromRGB(27, 42, 53) then
+						local Break = LightBreak:Clone()
+						Break.Parent = Part
+						Break:Play()
+						if Part:FindFirstChildOfClass("PointLight") then
+							Part:FindFirstChildOfClass("PointLight").Enabled = false
+							Part.Color = Color3.fromRGB(27, 42, 53)
+							Part.Material = Enum.Material.Glass
+						end
+					end
+				end
+				break
+			end
+		end
+	end
+	task.wait()
+	entity.LerpTo(Entity, Entity.PrimaryPart.CFrame-Vector3.new(0,1000,0))
+	Debris:AddItem(Entity,10)
+end
+
+function entity.Hearsay(StartCFrame, Rooms)
+	spawn(function()
+		if workspace.Values.Light.Value then
+			local Room = Rooms[#Rooms-1]
+			if Room:FindFirstChild("Light")  then
+				for _,Light in pairs(Room:FindFirstChild("Light"):GetChildren()) do
+					wait(0.1)
+					local Flick = LightFlick:Clone()
+					Flick.Parent = Light
+					Flick:Play()
+					spawn(function()
+						if Light:FindFirstChildOfClass("PointLight") then
+							for i=1,3 do
+								Light:FindFirstChildOfClass("PointLight").Enabled = false
+								Light.Color = Color3.fromRGB(27, 42, 53)
+								Light.Material = Enum.Material.Glass
+								wait(0.05)
+								Light:FindFirstChildOfClass("PointLight").Enabled = true
+								Light.Color = Color3.fromRGB(248, 217, 109)
+								Light.Material = Enum.Material.Neon
+								wait(0.1)
+							end
+						end
+					end)
+				end
+			end
+		end
+	end)
+
+	local Entity = game.ServerStorage.Entity.Hearsay:Clone()
+	Entity:PivotTo(StartCFrame-Vector3.new(0,RNG:NextNumber(1500,2500),0))
+	Entity.Parent = workspace.GeneratedEntity
+
+	local Blacklist = {}
+	local loop = nil
+	loop = RunService.Heartbeat:Connect(function()
+		if Entity and Entity:FindFirstChild("Sensor") then
+			local Parts = workspace:GetPartsInPart(Entity.Sensor,OverlapParams.new())
+			for _,Part in Parts do
+				if (Part and Part.Parent and (Part.Anchored or Part.Parent:HasTag("Closet") or Part.Velocity.Magnitude > 5) and Part:IsA("BasePart") and Part.Name == "HumanoidRootPart" and not table.find(Blacklist,Part.Parent)) then
+					local Player = game.Players:GetPlayerFromCharacter(Part.Parent)
+					table.insert(Blacklist,Part.Parent)
+					Part.Parent:FindFirstChildOfClass("Humanoid"):TakeDamage(100)
+					JumpscareEvent:FireClient(Player,"Hearsay")
+					wait(5)
+					JumpscareEvent:FireClient(Player,nil,true)
+				end
+
+				if Part and Part:IsA("BasePart") and Part.Name == "LightPart" and not table.find(Blacklist,Part) then
+					table.insert(Blacklist,Part)
+					local Break = LightBreak:Clone()
+					Break.Parent = Part
+					Break:Play()
+					if Part:FindFirstChildOfClass("PointLight") then
+						Part:FindFirstChildOfClass("PointLight").Enabled = false
+						Part.Color = Color3.fromRGB(27, 42, 53)
+						Part.Material = Enum.Material.Glass
+					end
+				end
+			end
+		else
+			loop:Disconnect()
+		end
+	end)
+
+	for _,Room in pairs(Rooms) do
+		if Room and Room:FindFirstChild("WayPoints") then
+			for i = 1, #Room:FindFirstChild("WayPoints"):GetChildren() do
+				if Room and Room:FindFirstChild("WayPoints") and Room:FindFirstChild("WayPoints"):FindFirstChild(i) then
+					entity.LerpTo(Entity, Room:FindFirstChild("WayPoints"):FindFirstChild(i).CFrame)
+				end
+			end
+			if Room == Rooms[#Rooms-1] then
+				if not Room:HasTag("Lock") then
+					EntityOpenEvent:Fire(Room)
+					task.wait()
+					local LastRoom = workspace.Values.CurrentRoom.Value
+					for i = 1, #LastRoom:FindFirstChild("WayPoints"):GetChildren() do
+						if LastRoom and LastRoom:FindFirstChild("WayPoints") and LastRoom:FindFirstChild("WayPoints"):FindFirstChild(i) then
+							entity.LerpTo(Entity, LastRoom:FindFirstChild("WayPoints"):FindFirstChild(i).CFrame)
+						end
+					end
+				end
+
+				workspace.Values.Light.Value = false
+				workspace.Values.Light:SetAttribute("OpenedDoors",0)
+				for _,Part in pairs(workspace.GeneratedRooms:GetDescendants()) do
+					if Part and Part:IsA("BasePart") and Part.Name == "LightPart" and Part.Color ~= Color3.fromRGB(27, 42, 53) then
+						local Break = LightBreak:Clone()
+						Break.Parent = Part
+						Break:Play()
+						if Part:FindFirstChildOfClass("PointLight") then
+							Part:FindFirstChildOfClass("PointLight").Enabled = false
+							Part.Color = Color3.fromRGB(27, 42, 53)
+							Part.Material = Enum.Material.Glass
+						end
+					end
+				end
+				break
+			end
+		end
+	end
+	task.wait()
+	entity.LerpTo(Entity, Entity.PrimaryPart.CFrame-Vector3.new(0,1500,0))
+	Debris:AddItem(Entity,10)
+end
+
+function entity.Generate(Rooms, Number)
+	--local EntityCount = 0
+	if workspace.GeneratedEntity:FindFirstChild("Aspire") or workspace.GeneratedEntity:FindFirstChild("Hearsay") then
+		return
+	end
+	
+	local RandomEntity = entity.GetRandom()
+
+	if RandomEntity.Name == "Aspire" then
+		local Room = Rooms[1]
+		for _,v in pairs(Rooms) do
+			if v:FindFirstChild("Entrance") and v:FindFirstChild("Exit") then
+				Room = v
+				break
+			end
+		end
+		if Room then
+			local StartCFrame = Room.Entrance.CFrame
+			entity.Aspire(StartCFrame, Rooms)
+		end
+	elseif RandomEntity.Name == "Hearsay" then
+		local Room = Rooms[1]
+		for _,v in pairs(Rooms) do
+			if v:FindFirstChild("Entrance") and v:FindFirstChild("Exit") then
+				Room = v
+				break
+			end
+		end
+		if Room then
+			local StartCFrame = Room.Entrance.CFrame
+			entity.Hearsay(StartCFrame, Rooms)
+		end
+	elseif RandomEntity.Name == "Leviathan" then
+		local Room = Rooms[1]
+		for _,v in pairs(Rooms) do
+			if v:FindFirstChild("Entrance") and v:FindFirstChild("Exit") then
+				Room = v
+				break
+			end
+		end
+		if Room then
+			local StartCFrame = Room.Entrance.CFrame
+			entity.Leviathan(StartCFrame, Rooms)
+		end
+	end
+end
+
+function entity.GetRandom()
+	local Mobs = shuffle(game.ServerStorage.Entity:GetChildren())
+	--print(Mobs)
+	local totalweight = 0
+	for _,Mob in pairs(Mobs) do
+		totalweight += require(Mob.Info).Weight
+	end
+	local RandomWeight = RNG:NextNumber(0,totalweight)
+	local CurrentWeight = 0
+	local RandomMob = nil
+	--print(RandomWeight)
+	for _,Mob in pairs(Mobs) do
+		CurrentWeight += require(Mob.Info).Weight
+		--print(Mob.Name)
+		if RandomWeight <= CurrentWeight then
+			--print("Selected")
+			RandomMob = Mob
+			break
+		end
+	end
+
+	return RandomMob
+end
+
+return entity
