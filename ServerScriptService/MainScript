@@ -1,0 +1,43 @@
+local Lighting = game:GetService("Lighting")
+local ServerStorage = game:GetService("ServerStorage")
+
+local CoreModules = ServerStorage:WaitForChild("CoreModules")
+
+local RoomModule = require(CoreModules.Room)
+local EntityModule = require(CoreModules.Entity)
+
+local prevRoom = workspace.GeneratedRooms.Starter
+require(CoreModules.Door).New(prevRoom,1)
+
+local Values = workspace:WaitForChild("Values")
+local Current = Values:WaitForChild("Current")
+local Light = Values:WaitForChild("Light")
+
+local RNG = Random.new(os.time())
+local RoomList = {}
+
+Lighting.ClockTime = 0
+Lighting.ExposureCompensation = -1
+Lighting.EnvironmentDiffuseScale = 0.3
+Lighting.Ambient = Color3.new(0, 0, 0)
+Lighting.Brightness = 0
+workspace.Baseplate:Destroy()
+
+prevRoom = RoomModule.Generate(prevRoom, Current.Value+1)
+RoomList[Current.Value+1] = prevRoom
+
+Current:GetPropertyChangedSignal("Value"):Connect(function()
+	prevRoom = RoomModule.Generate(prevRoom, Current.Value+1)
+	local EntityRoomList = RoomList
+	RoomList[Current.Value+1] = prevRoom
+	
+	if RNG:NextNumber(0,100) >= 70  and Current.Value >= 5 and Light.Value then
+		EntityModule.Generate(EntityRoomList, Current.Value)
+	end
+	if not Light then
+		Light:SetAttribute("OpenedDoors",Light:GetAttribute("OpenedDoors")+1)
+		if Light:GetAttribute("OpenedDoors") >= Light:GetAttribute("RequiredDoors") then
+			Light.Value = true
+		end
+	end
+end)
