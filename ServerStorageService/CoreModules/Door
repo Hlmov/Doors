@@ -1,0 +1,91 @@
+local MaxRooms = 5
+
+local TweenService = game:GetService("TweenService")
+local Debris = game:GetService("Debris")
+local EntityOpen = game:GetService("ReplicatedStorage").RemoteEvents.EntityDoorOpen
+local DoorsFolder = game:GetService("ServerStorage").Doors
+
+local door = {}
+
+function door.Open(Door, Room)
+	local Current = workspace.Values.Current
+	Current.Value = Door.Number.Text.Text
+	local cframe = Door.Hinge.CFrame * CFrame.Angles(0, math.rad(-100), 0)
+	local Tween = TweenService:Create(Door.Hinge, TweenInfo.new(0.5), {CFrame = cframe})
+	Tween:Play()
+	Door.Hinge.Open:Play()
+	
+	repeat task.wait() until Current.Value >= Door.Number.Text.Text+MaxRooms
+	wait(1)
+	local cframe = Door.Hinge.CFrame * CFrame.Angles(0, math.rad(100), 0)
+	local Tween = TweenService:Create(Door.Hinge, TweenInfo.new(0.3), {CFrame = cframe})
+	Tween:Play()
+	Debris:AddItem(Room,1)
+	repeat task.wait() until Current.Value >= Door.Number.Text.Text+MaxRooms+1
+	wait(1)
+	Debris:AddItem(Door,1)
+end
+
+function door.New(Room, Number, Lock)
+	local Door = DoorsFolder.Door:Clone()
+	Room.Exit.Transparency = 1
+	Room.Entrance.Transparency = 1
+	Door:PivotTo(Room.Exit.CFrame)
+	if Number < 10 then
+		Door.Number.Text.Text = "000"..Number
+	elseif Number < 100 then
+		Door.Number.Text.Text = "00"..Number
+	elseif Number < 1000 then
+		Door.Number.Text.Text = "0"..Number
+	end
+	Door.Parent = workspace.GeneratedDoors
+	
+	if Lock then
+		Room:AddTag("Lock")
+		Door.Sensor.CanTouch = false
+		Door.Lock.Transparency = 0
+		Door.Lock.ProximityPrompt.Enabled = true
+		Door.Lock.ProximityPrompt.Triggered:Connect(function(Player)
+			local Character = Player.Character
+			if Character and Character:FindFirstChild("Key") and not Character:HasTag("Closet") and Character:FindFirstChild("HumanoidRootPart") and Character:FindFirstChild("Humanoid") and Character:FindFirstChild("Humanoid").Health > 0 then
+				Door.Sensor.CanTouch = true
+				Room:RemoveTag("Lock")
+				Door.Lock.Anchored = false
+				Door.Lock.ProximityPrompt.Enabled = false
+				Debris:AddItem(Door.Lock,5)
+				
+				for _,Player in pairs(game.Players:GetChildren()) do
+					if Player:IsA("Player") and Player:FindFirstChildOfClass("Backpack"):FindFirstChild("Key") then
+						Player:FindFirstChildOfClass("Backpack"):FindFirstChild("Key"):Destroy()
+					end
+					if Player.Character and Player.Character:FindFirstChild("Key") then
+						Player.Character:FindFirstChild("Key"):Destroy()
+					end
+				end
+				if Room:FindFirstChild("KeyModel",true) then
+					Room:FindFirstChild("KeyModel",true):Destroy()
+				end
+			end
+		end)
+	end
+	
+	Door.Sensor.Touched:Connect(function(Part)
+		if Door:FindFirstChild("Sensor") and Part:IsA("BasePart") and Part.Parent and Part.Parent:FindFirstChildOfClass("Humanoid") then
+			Door.Sensor:Destroy()
+			door.Open(Door, Room)
+		end
+	end)
+	
+	EntityOpen.Event:Connect(function(RoomValue)
+		if RoomValue == Room then
+			if Door:FindFirstChild("Sensor") then
+				Door.Sensor:Destroy()
+				door.Open(Door, Room)
+			end
+		end
+	end)
+	
+	return Door
+end
+
+return door
