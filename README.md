@@ -2,3 +2,5 @@
 Might include bad organizes, variables
 
 Since the game is way too large i couldnt add detail scripts in here (ex. item scripts)
+
+(ps. this might have some few devforum scripts but i can write all of them by myself now)
