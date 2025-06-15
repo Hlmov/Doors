@@ -1,0 +1,105 @@
+local item = {}
+
+local Storage = game.ServerStorage.Items
+
+function item.Create(Room)
+	local Folder = Instance.new("Folder")
+	Folder.Parent = Room
+	Folder.Name = "GeneratedItems"
+
+	--[[for _,Position in pairs(Room.GeneratedFurnitures:GetDescendants()) do
+		if Position.Name == "ItemPosition" then
+			local Item = getrandom
+			Item.CFrame = Position.WorldCFrame
+			Item.Parent = Room.GeneratedItems
+			Position:Destroy()
+		end
+	end]]
+end
+
+function item.Key(Room)
+	math.randomseed(os.time())
+	local Points = Room.GeneratedFurnitures:GetDescendants()
+	local Positions = {}
+	for _,Point in pairs(Points) do
+		if Point.Name == "ItemPosition" then
+			Positions[#Positions+1] = Point
+		end
+	end
+	
+	if #Positions >= 1 then
+		local Position = Positions[math.random(1,#Positions)]
+		local Key = script.KeyModel:Clone()
+		Key:PivotTo(Position.WorldCFrame)
+		Key.Main.Weld.Part0 = Position.Parent
+		Key.Parent = Room.GeneratedItems
+		Key.Prompt.ProximityPrompt.Triggered:Connect(function(Player)
+			local Character = Player.Character
+			if Character and not (Player:FindFirstChildOfClass("Backpack"):FindFirstChild("Key") or Character:FindFirstChild("Key")) and not Character:HasTag("Closet") and Character:FindFirstChild("HumanoidRootPart") and Character:FindFirstChild("Humanoid") and Character:FindFirstChild("Humanoid").Health > 0 then
+				script.Key:Clone().Parent = Player:FindFirstChildOfClass("Backpack")
+			end
+		end)
+		Position:Destroy()
+	end
+end
+
+function item.Items(Room)
+	math.randomseed(os.time())
+	local Points = Room.GeneratedFurnitures:GetDescendants()
+	local Positions = {}
+	for _,Point in pairs(Points) do
+		if Point.Name == "ItemPosition" then
+			Positions[#Positions+1] = Point
+		end
+	end
+
+	if #Positions >= 1 then
+		for i = 1,math.random(1,math.round(#Positions)) do
+			if math.random(0,10) >= 7 then
+				local Position = Positions[math.random(1,#Positions)]
+				local Models = Storage.Models
+				local Tools = Storage.Tools
+				local Item = Tools:GetChildren()[math.random(1,#Tools:GetChildren())]
+				local ItemM = Models:FindFirstChild(Item.Name):Clone()
+				ItemM:PivotTo(Position.WorldCFrame)
+				ItemM.Main.Weld.Part0 = Position.Parent
+				ItemM.Parent = Room.GeneratedItems
+				ItemM.Prompt.ProximityPrompt.Triggered:Connect(function(Player)
+					local Character = Player.Character
+					if Character and not (Player:FindFirstChildOfClass("Backpack"):FindFirstChild("Key") or Character:FindFirstChild("Key")) and not Character:HasTag("Closet") and Character:FindFirstChild("HumanoidRootPart") and Character:FindFirstChild("Humanoid") and Character:FindFirstChild("Humanoid").Health > 0 then
+						Item:Clone().Parent = Player:FindFirstChildOfClass("Backpack")
+					end
+				end)
+				Position:Destroy()
+			end
+		end
+	end
+end
+
+function item.Prey(Room)
+	math.randomseed(os.time())
+	local Points = Room:GetDescendants()
+	local Positions = {}
+	for _,Point in pairs(Points) do
+		if Point.Name == "ItemPosition" then
+			Positions[#Positions+1] = Point
+		end
+	end
+
+	if #Positions >= 1 then
+		local Position = Positions[math.random(1,#Positions)]
+		local Prey = script.PreyModel:Clone()
+		Prey:PivotTo(Position.WorldCFrame)
+		Prey.Main.Weld.Part0 = Position.Parent
+		Prey.Parent = Room.GeneratedItems
+		Prey.Prompt.ProximityPrompt.Triggered:Connect(function(Player)
+			local Character = Player.Character
+			if Character and not (Player:FindFirstChildOfClass("Backpack"):FindFirstChild("Key") or Character:FindFirstChild("Key")) and not Character:HasTag("Closet") and Character:FindFirstChild("HumanoidRootPart") and Character:FindFirstChild("Humanoid") and Character:FindFirstChild("Humanoid").Health > 0 then
+				script.Prey:Clone().Parent = Player:FindFirstChildOfClass("Backpack")
+			end
+		end)
+		Position:Destroy()
+	end
+end
+
+return item
