@@ -1,6 +1,7 @@
 local item = {}
 
 local Storage = game.ServerStorage.Items
+local RNG = Random.new(os.time())
 
 function item.Create(Room)
 	local Folder = Instance.new("Folder")
@@ -18,7 +19,6 @@ function item.Create(Room)
 end
 
 function item.Key(Room)
-	math.randomseed(os.time())
 	local Points = Room.GeneratedFurnitures:GetDescendants()
 	local Positions = {}
 	for _,Point in pairs(Points) do
@@ -28,7 +28,7 @@ function item.Key(Room)
 	end
 	
 	if #Positions >= 1 then
-		local Position = Positions[math.random(1,#Positions)]
+		local Position = Positions[RNG:NextInteger(1,#Positions)]
 		local Key = script.KeyModel:Clone()
 		Key:PivotTo(Position.WorldCFrame)
 		Key.Main.Weld.Part0 = Position.Parent
@@ -44,7 +44,6 @@ function item.Key(Room)
 end
 
 function item.Items(Room)
-	math.randomseed(os.time())
 	local Points = Room.GeneratedFurnitures:GetDescendants()
 	local Positions = {}
 	for _,Point in pairs(Points) do
@@ -52,14 +51,14 @@ function item.Items(Room)
 			Positions[#Positions+1] = Point
 		end
 	end
-
+	
 	if #Positions >= 1 then
-		for i = 1,math.random(1,math.round(#Positions)) do
-			if math.random(0,10) >= 7 then
-				local Position = Positions[math.random(1,#Positions)]
+		for i = 1,RNG:NextInteger(1,math.round(#Positions)) do
+			if RNG:NextInteger(0,10) >= 7 then
+				local Position = Positions[RNG:NextInteger(1,#Positions)]
 				local Models = Storage.Models
 				local Tools = Storage.Tools
-				local Item = Tools:GetChildren()[math.random(1,#Tools:GetChildren())]
+				local Item = Tools:GetChildren()[RNG:NextInteger(1,#Tools:GetChildren())]
 				local ItemM = Models:FindFirstChild(Item.Name):Clone()
 				ItemM:PivotTo(Position.WorldCFrame)
 				ItemM.Main.Weld.Part0 = Position.Parent
@@ -77,7 +76,6 @@ function item.Items(Room)
 end
 
 function item.Prey(Room)
-	math.randomseed(os.time())
 	local Points = Room:GetDescendants()
 	local Positions = {}
 	for _,Point in pairs(Points) do
@@ -87,7 +85,7 @@ function item.Prey(Room)
 	end
 
 	if #Positions >= 1 then
-		local Position = Positions[math.random(1,#Positions)]
+		local Position = Positions[RNG:NextInteger(1,#Positions)]
 		local Prey = script.PreyModel:Clone()
 		Prey:PivotTo(Position.WorldCFrame)
 		Prey.Main.Weld.Part0 = Position.Parent
