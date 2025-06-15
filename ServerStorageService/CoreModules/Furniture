@@ -1,0 +1,80 @@
+local Closets = game.ServerStorage.Closets
+local Drawers = game.ServerStorage.Drawers
+
+local furniture = {}
+furniture.random = Random.new()
+
+function furniture.Furnish(Room)
+	local Folder = Instance.new("Folder")
+	Folder.Parent = Room
+	Folder.Name = "GeneratedFurnitures"
+
+	local Furnitures = Room:FindFirstChild("Furnitures")
+
+	if Furnitures:FindFirstChild("Closets") then
+		furniture.Closet(Room)
+	end
+	if Furnitures:FindFirstChild("Drawers") then
+		furniture.Drawer(Room)
+	end
+	
+	Room.Furnitures:Destroy()
+end
+
+function furniture.Drawer(Room)
+	local PlaceHolders = Room.Furnitures.Drawers:GetChildren()
+	local MaximumDrawers = #PlaceHolders
+	if MaximumDrawers == 0 then
+		return
+	end
+	local Positions = {}
+
+	for i = 1, furniture.random:NextInteger(math.round(MaximumDrawers*0.3),MaximumDrawers) do
+		local Value = PlaceHolders[furniture.random:NextInteger(1,#PlaceHolders)]
+		table.insert(Positions,Value)
+		table.remove(PlaceHolders,table.find(PlaceHolders,Value))
+	end
+
+	for _,Position in pairs(Positions) do
+		local Drawer = Drawers:GetChildren()[math.random(1,#Drawers:GetChildren())]:Clone()
+		Drawer:PivotTo(Position.CFrame)
+		Drawer.Parent = Room.GeneratedFurnitures
+	end
+end
+
+function furniture.Closet(Room)
+	local PlaceHolders = Room.Furnitures.Closets:GetChildren()
+
+	--[[for _,Position in pairs(PlaceHolders) do
+		local Closet = Closets:GetChildren()[math.random(1,#Closets:GetChildren())]:Clone()
+		Closet:PivotTo(Position.CFrame)
+		Closet.Parent = Room.GeneratedFurnitures
+	end]]
+
+	local CurrentPlayers = #game.Players:GetChildren()
+	local MaximumClosets = #PlaceHolders
+	
+	if CurrentPlayers > MaximumClosets then
+		CurrentPlayers = 0
+	end
+
+	local Positions = {}
+
+	for i = 1, furniture.random:NextInteger(CurrentPlayers,MaximumClosets) do
+		local Value = PlaceHolders[furniture.random:NextInteger(1,#PlaceHolders)]
+		table.insert(Positions,Value)
+		table.remove(PlaceHolders,table.find(PlaceHolders,Value))
+	end
+
+	for _,Position in pairs(Positions) do
+		local Closet = Closets:GetChildren()[math.random(1,#Closets:GetChildren())]:Clone()
+		Closet:PivotTo(Position.CFrame)
+		Closet.Parent = Room.GeneratedFurnitures
+	end
+
+	for _,Debris in pairs(Room.Furnitures.Closets:GetChildren()) do
+		Debris:Destroy()
+	end
+end
+
+return furniture
